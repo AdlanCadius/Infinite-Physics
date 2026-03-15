@@ -1,0 +1,21 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+
+@theme {
+  --font-serif: "Times New Roman", Times, serif;
+}
+
+.explanation-text {
+  font-family: "Times New Roman", Times, serif;
+  line-height: 1.6;
+}
+
+.latex-formula {
+  @apply my-4 p-4 bg-zinc-50 rounded-lg border border-zinc-200 overflow-x-auto;
+}
+
+.breadcrumb-item:not(:last-child)::after {
+  content: "/";
+  @apply mx-2 text-zinc-400;
+}
+
