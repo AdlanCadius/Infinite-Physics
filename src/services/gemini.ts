@@ -3,49 +3,46 @@ import { PhysicsNode } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
-export async function fetchPhysicsContent(query: string): Promise<PhysicsNode> {
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `Explain the physics concept: "${query}". 
-    Provide a structured response including:
-    1. A clear explanation in plain text.
-    2. Key formulas in LaTeX format (without $ delimiters).
-    3. A list of physical quantities involved with their symbols, names, units, and brief descriptions.
-    
-    The response must be in JSON format.`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          title: { type: Type.STRING },
-          explanation: { type: Type.STRING },
-          formulas: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING }
-          },
-          quantities: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                symbol: { type: Type.STRING },
-                name: { type: Type.STRING },
-                unit: { type: Type.STRING },
-                description: { type: Type.STRING }
-              },
-              required: ["symbol", "name", "unit", "description"]
-            }
-          }
-        },
-        required: ["title", "explanation", "formulas", "quantities"]
-      }
-    }
+const CACHE_KEY = "physics_cache_v4";
+
+function getCache(): Record<string, PhysicsNode> {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    return cached ? JSON.parse(cached) : {};
+  } catch {
+    return {};
+  }
+}
+
+function setCache(query: string, node: PhysicsNode) {
+  try {
+    const cache = getCache();
+    cache[query.toLowerCase().trim()] = node;
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  } catch (e) {
+    console.warn("Failed to save to cache:", e);
+  }
+}
+
+export async function fetchPhysicsContent(query: string, lang: "id" | "en" = "id", userId: string): Promise<PhysicsNode> {
+  const response = await fetch("/api/physics/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, lang, userId }),
   });
 
-  const content = JSON.parse(response.text || "{}");
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to fetch physics content");
+  }
+
+  const node = await response.json();
   return {
     id: Math.random().toString(36).substr(2, 9),
-    ...content
+    ...node
   };
+}
+
+export function clearPhysicsCache() {
+  localStorage.removeItem(CACHE_KEY);
 }
